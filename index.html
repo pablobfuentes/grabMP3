@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC System Audio Recorder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .record-btn {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .record-btn:hover {
+            background: #c0392b;
+        }
+        
+        .record-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .stop-btn {
+            background: #34495e;
+            color: white;
+        }
+        
+        .stop-btn:hover {
+            background: #2c3e50;
+        }
+        
+        .play-btn {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .play-btn:hover {
+            background: #229954;
+        }
+        
+        .download-btn {
+            background: #3498db;
+            color: white;
+        }
+        
+        .download-btn:hover {
+            background: #2980b9;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: #ecf0f1;
+            color: #2c3e50;
+        }
+        
+        .recording {
+            background: #e74c3c;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .audio-player {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        audio {
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .timer {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            color: #2c3e50;
+        }
+        
+        .recording-timer {
+            color: #e74c3c;
+        }
+        
+        .instructions {
+            background: #d5dbdb;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .instructions h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .instructions ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .filename-section {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .filename-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .filename-section input {
+            width: 100%;
+            max-width: 300px;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .filename-section input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .filename-section small {
+            display: block;
+            color: #6c757d;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔊 PC System Audio Recorder</h1>
+        
+        <div class="timer" id="timer">00:00</div>
+        
+        <div class="controls">
+            <button id="recordBtn" class="record-btn">🔴 Start Recording</button>
+            <button id="stopBtn" class="stop-btn" disabled>⏹️ Stop Recording</button>
+            <button id="playBtn" class="play-btn" disabled>▶️ Play</button>
+            <button id="downloadBtn" class="download-btn" disabled>💾 Download as MP3</button>
+        </div>
+        
+        <div class="filename-section">
+            <label for="filenameInput">📝 Filename (optional):</label>
+            <input type="text" id="filenameInput" placeholder="Enter filename (e.g., my_recording)" maxlength="50">
+            <small>Leave empty for auto-generated name. No special characters except - and _</small>
+        </div>
+        
+        <div class="controls">
+            <button id="openAudioSettings" class="download-btn">🔧 Open Windows Audio Settings</button>
+        </div>
+        
+        <div class="status" id="status">Ready to record</div>
+        
+        <div class="audio-player" id="audioPlayer" style="display: none;">
+            <audio id="audioPlayback" controls></audio>
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ul>
+                <li>Click "Start Recording" to begin capturing PC audio output</li>
+                <li>In the browser dialog, select "Share audio" tab or check "Share audio" checkbox</li>
+                <li>Choose your entire screen or a specific window</li>
+                <li>Make sure "Share audio" is enabled in the dialog</li>
+                <li>Click "Stop Recording" to end the session</li>
+                <li>Play back your recording to review it</li>
+                <li>Click "Download as MP3" to save your recording</li>
+            </ul>
+            <p><strong>Note:</strong> This captures system audio (what you hear through speakers/headphones).</p>
+            <p><strong>Alternative method:</strong> If the above doesn't work, try the "Stereo Mix" method below.</p>
+        </div>
+        
+        <div class="instructions">
+            <h3>Alternative: Enable Stereo Mix (Windows)</h3>
+            <ul>
+                <li>Right-click the sound icon in your system tray</li>
+                <li>Select "Open Sound settings"</li>
+                <li>Click "More sound settings"</li>
+                <li>Go to "Recording" tab</li>
+                <li>Right-click in empty area and select "Show Disabled Devices"</li>
+                <li>Enable "Stereo Mix" and set as default</li>
+                <li>Refresh this page and try recording again</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js"></script>
+    <script>
+        class AudioRecorder {
+            constructor() {
+                this.mediaRecorder = null;
+                this.audioChunks = [];
+                this.audioBlob = null;
+                this.audioUrl = null;
+                this.stream = null;
+                this.startTime = null;
+                this.timerInterval = null;
+                
+                this.recordBtn = document.getElementById('recordBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.playBtn = document.getElementById('playBtn');
+                this.downloadBtn = document.getElementById('downloadBtn');
+                this.status = document.getElementById('status');
+                this.audioPlayer = document.getElementById('audioPlayer');
+                this.audioPlayback = document.getElementById('audioPlayback');
+                this.timer = document.getElementById('timer');
+                this.error = document.getElementById('error');
+                
+                this.initializeEventListeners();
+            }
+            
+            initializeEventListeners() {
+                this.recordBtn.addEventListener('click', () => this.startRecording());
+                this.stopBtn.addEventListener('click', () => this.stopRecording());
+                this.playBtn.addEventListener('click', () => this.playRecording());
+                this.downloadBtn.addEventListener('click', () => this.downloadRecording());
+                
+                // Add audio settings button
+                const audioSettingsBtn = document.getElementById('openAudioSettings');
+                audioSettingsBtn.addEventListener('click', () => this.openAudioSettings());
+            }
+            
+            async getSystemAudio() {
+                try {
+                    // Method 1: Try getDisplayMedia with screen sharing (includes system audio)
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ 
+                        video: {
+                            mediaSource: 'screen',
+                            width: { ideal: 1 },
+                            height: { ideal: 1 }
+                        },
+                        audio: {
+                            echoCancellation: false,
+                            noiseSuppression: false,
+                            autoGainControl: false,
+                            suppressLocalAudioPlayback: false
+                        } 
+                    });
+                    
+                    // Check if we got audio track
+                    const audioTracks = stream.getAudioTracks();
+                    if (audioTracks.length === 0) {
+                        throw new Error('No audio track found in screen share');
+                    }
+                    
+                    // We only want the audio track, so we can remove video track
+                    const videoTracks = stream.getVideoTracks();
+                    videoTracks.forEach(track => track.stop());
+                    
+                    return stream;
+                    
+                } catch (error) {
+                    console.log('getDisplayMedia failed, trying getUserMedia with Stereo Mix...');
+                    
+                    // Method 2: Fallback to getUserMedia (requires Stereo Mix to be enabled)
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ 
+                            audio: {
+                                echoCancellation: false,
+                                noiseSuppression: false,
+                                autoGainControl: false
+                            } 
+                        });
+                        
+                        // Check if this is likely a system audio source
+                        const audioTracks = stream.getAudioTracks();
+                        if (audioTracks.length > 0) {
+                            const trackLabel = audioTracks[0].label.toLowerCase();
+                            if (trackLabel.includes('stereo mix') || trackLabel.includes('what u hear') || 
+                                trackLabel.includes('wave out') || trackLabel.includes('speakers')) {
+                                return stream;
+                            }
+                        }
+                        
+                        // If we got here, it's probably just a microphone
+                        throw new Error('No system audio source detected. Please enable Stereo Mix.');
+                        
+                    } catch (fallbackError) {
+                        throw new Error('Could not access system audio. Please follow the Stereo Mix instructions below.');
+                    }
+                }
+            }
+            
+            async startRecording() {
+                try {
+                    this.clearError();
+                    
+                    // Try to get system audio using getDisplayMedia first
+                    this.stream = await this.getSystemAudio();
+                    
+                    this.mediaRecorder = new MediaRecorder(this.stream, {
+                        mimeType: 'audio/webm;codecs=opus'
+                    });
+                    
+                    this.audioChunks = [];
+                    
+                    this.mediaRecorder.addEventListener('dataavailable', (event) => {
+                        this.audioChunks.push(event.data);
+                    });
+                    
+                    this.mediaRecorder.addEventListener('stop', () => {
+                        this.processRecording();
+                    });
+                    
+                    this.mediaRecorder.start();
+                    this.startTime = Date.now();
+                    this.startTimer();
+                    
+                    this.recordBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    this.playBtn.disabled = true;
+                    this.downloadBtn.disabled = true;
+                    
+                    this.status.textContent = 'Recording...';
+                    this.status.className = 'status recording';
+                    
+                } catch (error) {
+                    this.showError('Error starting system audio recording: ' + error.message);
+                    console.error('Error starting system audio recording:', error);
+                }
+            }
+            
+            stopRecording() {
+                if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                    this.mediaRecorder.stop();
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stopTimer();
+                    
+                    this.recordBtn.disabled = false;
+                    this.stopBtn.disabled = true;
+                    
+                    this.status.textContent = 'Processing recording...';
+                    this.status.className = 'status';
+                }
+            }
+            
+            processRecording() {
+                this.audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                this.audioUrl = URL.createObjectURL(this.audioBlob);
+                
+                this.audioPlayback.src = this.audioUrl;
+                this.audioPlayer.style.display = 'block';
+                
+                this.playBtn.disabled = false;
+                this.downloadBtn.disabled = false;
+                
+                this.status.textContent = 'Recording complete! You can now play or download your recording.';
+                this.status.className = 'status';
+            }
+            
+            playRecording() {
+                if (this.audioUrl) {
+                    this.audioPlayback.play();
+                }
+            }
+            
+            async downloadRecording() {
+                if (!this.audioBlob) return;
+                
+                try {
+                    this.status.textContent = 'Converting to MP3...';
+                    
+                    // Convert WebM to WAV first
+                    const wavBlob = await this.convertToWav(this.audioBlob);
+                    
+                    // Convert WAV to MP3
+                    const mp3Blob = await this.convertToMp3(wavBlob);
+                    
+                    // Get custom filename or use default
+                    const customFilename = this.getValidFilename();
+                    
+                    const downloadUrl = URL.createObjectURL(mp3Blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = customFilename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    this.status.textContent = 'MP3 file downloaded successfully!';
+                    
+                    // Clean up
+                    URL.revokeObjectURL(downloadUrl);
+                    
+                } catch (error) {
+                    this.showError('Error converting to MP3: ' + error.message);
+                    console.error('Error converting to MP3:', error);
+                }
+            }
+            
+            getValidFilename() {
+                const filenameInput = document.getElementById('filenameInput');
+                let customName = filenameInput.value.trim();
+                
+                // If empty, use default timestamp format
+                if (!customName) {
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    return `recording_${timestamp}.mp3`;
+                }
+                
+                // Clean the filename - remove invalid characters
+                customName = customName.replace(/[<>:"/\\|?*]/g, ''); // Remove invalid Windows filename characters
+                customName = customName.replace(/[^\w\s\-_]/g, ''); // Keep only letters, numbers, spaces, hyphens, underscores
+                customName = customName.replace(/\s+/g, '_'); // Replace spaces with underscores
+                customName = customName.replace(/_{2,}/g, '_'); // Replace multiple underscores with single
+                customName = customName.replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+                
+                // If after cleaning it's empty or too short, use default
+                if (!customName || customName.length < 1) {
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    return `recording_${timestamp}.mp3`;
+                }
+                
+                // Ensure it ends with .mp3
+                if (!customName.toLowerCase().endsWith('.mp3')) {
+                    customName += '.mp3';
+                }
+                
+                return customName;
+            }
+            
+            async convertToWav(webmBlob) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const arrayBuffer = e.target.result;
+                            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                            
+                            const wavBuffer = this.audioBufferToWav(audioBuffer);
+                            const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+                            resolve(wavBlob);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(webmBlob);
+                });
+            }
+            
+            audioBufferToWav(buffer) {
+                const length = buffer.length;
+                const numberOfChannels = buffer.numberOfChannels;
+                const sampleRate = buffer.sampleRate;
+                const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
+                const view = new DataView(arrayBuffer);
+                
+                // WAV header
+                const writeString = (offset, string) => {
+                    for (let i = 0; i < string.length; i++) {
+                        view.setUint8(offset + i, string.charCodeAt(i));
+                    }
+                };
+                
+                writeString(0, 'RIFF');
+                view.setUint32(4, 36 + length * numberOfChannels * 2, true);
+                writeString(8, 'WAVE');
+                writeString(12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true);
+                view.setUint16(22, numberOfChannels, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * numberOfChannels * 2, true);
+                view.setUint16(32, numberOfChannels * 2, true);
+                view.setUint16(34, 16, true);
+                writeString(36, 'data');
+                view.setUint32(40, length * numberOfChannels * 2, true);
+                
+                // Convert float32 to int16
+                let offset = 44;
+                for (let i = 0; i < length; i++) {
+                    for (let channel = 0; channel < numberOfChannels; channel++) {
+                        const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+                        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                        offset += 2;
+                    }
+                }
+                
+                return arrayBuffer;
+            }
+            
+            async convertToMp3(wavBlob) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const arrayBuffer = e.target.result;
+                            const dataView = new DataView(arrayBuffer);
+                            
+                            // Parse WAV header
+                            const sampleRate = dataView.getUint32(24, true);
+                            const numChannels = dataView.getUint16(22, true);
+                            const dataOffset = 44;
+                            const dataLength = arrayBuffer.byteLength - dataOffset;
+                            
+                            // Convert to 16-bit PCM
+                            const pcmData = new Int16Array(arrayBuffer, dataOffset, dataLength / 2);
+                            
+                            // Initialize LAME encoder
+                            const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, 128);
+                            const mp3Data = [];
+                            
+                            // Encode in chunks
+                            const chunkSize = 1152;
+                            for (let i = 0; i < pcmData.length; i += chunkSize * numChannels) {
+                                const chunk = pcmData.subarray(i, i + chunkSize * numChannels);
+                                let mp3buf;
+                                
+                                if (numChannels === 1) {
+                                    mp3buf = mp3encoder.encodeBuffer(chunk);
+                                } else {
+                                    // Separate left and right channels
+                                    const left = new Int16Array(chunk.length / 2);
+                                    const right = new Int16Array(chunk.length / 2);
+                                    
+                                    for (let j = 0; j < chunk.length; j += 2) {
+                                        left[j / 2] = chunk[j];
+                                        right[j / 2] = chunk[j + 1];
+                                    }
+                                    
+                                    mp3buf = mp3encoder.encodeBuffer(left, right);
+                                }
+                                
+                                if (mp3buf.length > 0) {
+                                    mp3Data.push(mp3buf);
+                                }
+                            }
+                            
+                            // Flush encoder
+                            const mp3buf = mp3encoder.flush();
+                            if (mp3buf.length > 0) {
+                                mp3Data.push(mp3buf);
+                            }
+                            
+                            const mp3Blob = new Blob(mp3Data, { type: 'audio/mp3' });
+                            resolve(mp3Blob);
+                            
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(wavBlob);
+                });
+            }
+            
+            startTimer() {
+                this.timerInterval = setInterval(() => {
+                    const elapsed = Date.now() - this.startTime;
+                    const seconds = Math.floor(elapsed / 1000);
+                    const minutes = Math.floor(seconds / 60);
+                    const displaySeconds = seconds % 60;
+                    
+                    this.timer.textContent = `${minutes.toString().padStart(2, '0')}:${displaySeconds.toString().padStart(2, '0')}`;
+                    this.timer.className = 'timer recording-timer';
+                }, 1000);
+            }
+            
+            stopTimer() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                    this.timer.className = 'timer';
+                }
+            }
+            
+            showError(message) {
+                this.error.textContent = message;
+                this.error.style.display = 'block';
+                this.status.textContent = 'Error occurred';
+                this.status.className = 'status';
+            }
+            
+            clearError() {
+                this.error.style.display = 'none';
+            }
+            
+            openAudioSettings() {
+                // Try to open Windows audio settings
+                try {
+                    // This will work on Windows 10/11
+                    window.open('ms-settings:sound', '_blank');
+                } catch (error) {
+                    // Fallback: provide instructions
+                    alert('To open Windows Audio Settings manually:\n\n' +
+                          '1. Right-click the sound icon in your system tray\n' +
+                          '2. Select "Open Sound settings"\n' +
+                          '3. Click "More sound settings"\n' +
+                          '4. Go to "Recording" tab\n' +
+                          '5. Right-click in empty area and select "Show Disabled Devices"\n' +
+                          '6. Enable "Stereo Mix" and set as default');
+                }
+            }
+        }
+        
+        // Initialize the recorder when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AudioRecorder();
+        });
+    </script>
+</body>
+</html> 
