@@ -1,9 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC System Audio Recorder</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Online System Audio Recorder - Record PC Audio in Browser</title>
+    <meta name="description" content="Your usual MP3 downloaders down? Capture system audio from your computer directly in your browser. No installs. Record, play, and download MP3 files from your PC system audio." />
+    <meta name="keywords" content="record system audio, pc audio recorder, browser audio recorder, capture sound from pc, online audio recorder, record speaker audio, stereo mix alternative" />
+    <meta name="author" content="YourName" />
+
+    <!-- Open Graph for link previews -->
+    <meta property="og:title" content="Online System Audio Recorder" />
+    <meta property="og:description" content="Record PC audio directly from your browser and download as MP3. No installs required." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://grabmp3.netlify.app/" />
+    <meta property="og:image" content="https://yourdomain.com/preview.jpg" />
+
+    <!-- Twitter card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Online System Audio Recorder" />
+    <meta name="twitter:description" content="Record what you hear on your PC directly in the browser. Download as MP3." />
+    <meta name="twitter:image" content="https://yourdomain.com/preview.jpg" />
+
+    <link rel="icon" href="favicon.ico" />
+
+    <!-- Optional: Analytics -->
+    <!-- <script defer data-domain="https://grabmp3.netlify.app/" src="https://plausible.io/js/script.js"></script> -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -188,11 +210,58 @@
             color: #6c757d;
             font-size: 12px;
         }
+        
+        .collapsible-header {
+            background: #3498db;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            margin: 20px 0 0 0;
+            transition: background-color 0.3s ease;
+        }
+        
+        .collapsible-header:hover {
+            background: #2980b9;
+        }
+        
+        .collapsible-header .arrow {
+            transition: transform 0.3s ease;
+            font-size: 18px;
+        }
+        
+        .collapsible-header.expanded .arrow {
+            transform: rotate(180deg);
+        }
+        
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: #f8f9fa;
+            border-radius: 0 0 5px 5px;
+            margin-top: 0;
+        }
+        
+        .collapsible-content.expanded {
+            max-height: 1000px;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-top: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>PC System Audio Recorder aka MP3 Grabber</h1>
+        <h1>PC System Audio Recorder [grabMP3]</h1>
+        <p style="text-align: center; color: #555;">
+            This free online tool lets you <strong>record PC system audio</strong> directly from your browser.
+            No downloads, no installs — just hit record and save what you hear as an <strong>MP3 file</strong>.
+        </p>
         
         <div class="timer" id="timer">00:00</div>
         
@@ -204,7 +273,7 @@
         </div>
         
         <div class="filename-section">
-            <label for="filenameInput">📝 Filename (optional):</label>
+            <label for="filenameInput">Saves as: filename (optional):</label>
             <input type="text" id="filenameInput" placeholder="Enter filename (e.g., my_recording)" maxlength="50">
             <small>Leave empty for auto-generated name. No special characters except - and _</small>
         </div>
@@ -221,31 +290,58 @@
         
         <div id="error" class="error" style="display: none;"></div>
         
-        <div class="instructions">
-            <h3>Instructions:</h3>
-            <ul>
-                <li>Click "Start Recording" to begin capturing PC audio output</li>
-                <li>In the browser dialog, select "Share audio" tab or check "Share audio" checkbox</li>
-                <li>Choose your entire screen or a specific window</li>
-                <li>Make sure "Share audio" is enabled in the dialog</li>
-                <li>Click "Stop Recording" to end the session</li>
-                <li>Play back your recording to review it</li>
-                <li>Click "Download as MP3" to save your recording</li>
-            </ul>
-            <p><strong>Note:</strong> This captures system audio (what you hear through speakers/headphones).</p>
-            <p><strong>Alternative method:</strong> If the above doesn't work, try the "Stereo Mix" method below.</p>
+        <!-- Collapsible Instructions -->
+        <div class="collapsible-header" onclick="toggleInstructions()">
+            <span>Instructions</span>
+            <span class="arrow">▼</span>
         </div>
-        
+        <div class="collapsible-content" id="instructionsContent">
+            <div class="instructions">
+                <h3>Instructions:</h3>
+                <ul>
+                    <li>Click "Start Recording" to begin capturing PC audio output</li>
+                    <li>In the browser dialog, select "Share audio" tab or check "Share audio" checkbox</li>
+                    <li>Choose your entire screen or a specific window</li>
+                    <li>Make sure "Share audio" is enabled in the dialog</li>
+                    <li>Click "Stop Recording" to end the session</li>
+                    <li>Play back your recording to review it</li>
+                    <li>Click "Download as MP3" to save your recording</li>
+                </ul>
+                <p><strong>Note:</strong> This captures system audio (what you hear through speakers/headphones).</p>
+                <p><strong>Alternative method:</strong> If the above doesn't work, try the "Stereo Mix" method below.</p>
+            </div>
+            
+            <div class="instructions">
+                <h3>Alternative: Enable Stereo Mix (Windows)</h3>
+                <ul>
+                    <li>Right-click the sound icon in your system tray</li>
+                    <li>Select "Open Sound settings"</li>
+                    <li>Click "More sound settings"</li>
+                    <li>Go to "Recording" tab</li>
+                    <li>Right-click in empty area and select "Show Disabled Devices"</li>
+                    <li>Enable "Stereo Mix" and set as default</li>
+                    <li>Refresh this page and try recording again</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <hr>
+        <div style="text-align: center; margin-top: 30px;">
+            <p>If this tool helped you, consider <strong>supporting its development</strong>:</p>
+            <a href="https://coff.ee/pfuentes" target="_blank">
+                <img src="https://www.buymeacoffee.com/assets/img/custom_images/yellow_img.png" alt="Buy Me a Coffee" style="height: 40px;" />
+            </a>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #555;">Or share it with someone who might need it!</p>
+        </div>
+
+        <!-- FAQ -->
         <div class="instructions">
-            <h3>Alternative: Enable Stereo Mix (Windows)</h3>
+            <h3>FAQ</h3>
             <ul>
-                <li>Right-click the sound icon in your system tray</li>
-                <li>Select "Open Sound settings"</li>
-                <li>Click "More sound settings"</li>
-                <li>Go to "Recording" tab</li>
-                <li>Right-click in empty area and select "Show Disabled Devices"</li>
-                <li>Enable "Stereo Mix" and set as default</li>
-                <li>Refresh this page and try recording again</li>
+                <li><strong>Does this record my microphone?</strong> No, it captures what you hear (system audio).</li>
+                <li><strong>Why do I need to share my screen?</strong> That's how browsers grant permission to capture system audio. It is NOT actually recorded.</li>
+                <li><strong>What if it doesn't work?</strong> Try enabling "Stereo Mix" in your sound settings (see guide above).</li>
             </ul>
         </div>
     </div>
@@ -665,6 +761,34 @@
         document.addEventListener('DOMContentLoaded', () => {
             new AudioRecorder();
         });
+        
+        // Toggle instructions visibility
+        function toggleInstructions() {
+            const header = document.querySelector('.collapsible-header');
+            const content = document.getElementById('instructionsContent');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                header.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                header.classList.add('expanded');
+            }
+        }
+    </script>
+
+    <!-- Schema Markup -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "PC System Audio Recorder",
+      "url": "https://yourdomain.com",
+      "description": "An online tool to record PC system audio directly in the browser and download it as MP3.",
+      "applicationCategory": "AudioApplication",
+      "operatingSystem": "All",
+      "browserRequirements": "Requires Chrome or Edge with screen capture permission"
+    }
     </script>
 </body>
 </html> 
