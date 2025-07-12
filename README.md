@@ -1,19 +1,18 @@
-# 🔊 Online System Audio Recorder
+# Online System Audio Recorder
 
 A free, browser-based tool to record PC system audio directly in your browser. No downloads, no installs — just hit record and save what you hear as an MP3 file.
 
-## 🌟 Features
+##Features
 
-- **🎙️ System Audio Recording** - Captures what you hear through speakers/headphones
-- **📱 No Installation Required** - Works directly in your browser
-- **💾 MP3 Export** - Download recordings as high-quality MP3 files
-- **⏱️ Real-time Timer** - See recording duration as you record
-- **🎵 Audio Playback** - Review recordings before downloading
-- **📝 Custom Filenames** - Choose your own filename or use auto-generated
-- **🔧 Portable** - Single HTML file, works offline after first load
-- **📋 Collapsible Instructions** - Clean interface with help when needed
+- **System Audio Recording** - Captures what you hear through speakers/headphones
+- **No Installation Required** - Works directly in your browser
+- **MP3 Export** - Download recordings as high-quality MP3 files
+- **Real-time Timer** - See recording duration as you record
+- **Audio Playback** - Review recordings before downloading
+- **Custom Filenames** - Choose your own filename or use auto-generated
+- **Collapsible Instructions** - Clean interface with help when needed
 
-## 🚀 Quick Start
+## Quick Start
 
 1. **Open the file**: Double-click `audio_recorder.html` or open it in your browser
 2. **Allow permissions**: Grant audio capture permissions when prompted
@@ -22,7 +21,7 @@ A free, browser-based tool to record PC system audio directly in your browser. N
 5. **Stop recording**: Click "⏹️ Stop Recording" when done
 6. **Download**: Click "💾 Download as MP3" to save your file
 
-## 🛠️ How It Works
+## How It Works
 
 ### Method 1: Screen Sharing (Recommended)
 - Uses `getDisplayMedia()` API to capture system audio
@@ -34,13 +33,13 @@ A free, browser-based tool to record PC system audio directly in your browser. N
 - Captures system audio through virtual audio device
 - Works when screen sharing method fails
 
-## 📋 Requirements
+## Requirements
 
 - **Browser**: Chrome, Edge, Firefox, or Safari (Chrome/Edge recommended)
 - **OS**: Windows, Mac, or Linux
 - **Audio**: System audio output (speakers/headphones)
 
-## 🔧 Setup for Stereo Mix (Windows)
+## Setup for Stereo Mix (Windows)
 
 If the screen sharing method doesn't work:
 
@@ -52,7 +51,7 @@ If the screen sharing method doesn't work:
 6. Enable "Stereo Mix" and set as default
 7. Refresh the page and try recording again
 
-## 📁 File Structure
+## File Structure
 
 ```
 audio_recorder/
@@ -62,7 +61,7 @@ audio_recorder/
 └── .gitignore           # Git ignore file
 ```
 
-## 🌐 Browser Compatibility
+## Browser Compatibility
 
 | Browser | Status | Notes |
 |---------|--------|-------|
@@ -71,7 +70,7 @@ audio_recorder/
 | Firefox | ⚠️ Limited | May need Stereo Mix |
 | Safari | ⚠️ Limited | Mac users |
 
-## 🎯 Use Cases
+## Use Cases
 
 - **Music Recording** - Capture songs from streaming services
 - **Podcast Recording** - Record audio from webinars or calls
@@ -79,14 +78,14 @@ audio_recorder/
 - **Video Audio** - Extract audio from online videos
 - **System Sounds** - Record notifications or alerts
 
-## 🔒 Privacy & Security
+## Privacy & Security
 
 - **No server uploads** - Everything happens locally in your browser
 - **No data collection** - We don't track or store your recordings
 - **Open source** - Review the code yourself
 - **Offline capable** - Works without internet after first load
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
@@ -98,23 +97,23 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Test thoroughly in different browsers
 5. Submit a pull request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Built with vanilla JavaScript and HTML5 APIs
 - Uses [LAME.js](https://github.com/zhuker/lamejs) for MP3 encoding
 - Inspired by the need for simple, portable audio recording tools
 
-## 📞 Support
+## Support
 
 If you find this tool helpful, consider:
-- ⭐ Starring this repository
-- 🐛 Reporting bugs or issues
-- 💡 Suggesting new features
-- ☕ [Buy me a coffee](https://www.buymeacoffee.com/yourname)
+-  Starring this repository
+-  Reporting bugs or issues
+-  Suggesting new features
+-  [Buy me a coffee](https://coff.ee/pfuentes)
 
 ---
 
