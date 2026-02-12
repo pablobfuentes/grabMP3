@@ -736,14 +736,13 @@ self.onmessage = function(e) {
                 const length = buffer.length;
                 const numberOfChannels = buffer.numberOfChannels;
                 const sampleRate = buffer.sampleRate;
-                console.log('[MP3] audioBufferToWavAsync: start, length=', length, 'channels=', numberOfChannels, 'rate=', sampleRate, '~', (length / sampleRate).toFixed(1), 's');
+                console.log('[MP3] audioBufferToWavAsync: start, length=', length, 'channels=', numberOfChannels, '~', (length / sampleRate).toFixed(1), 's');
+                const channels = [];
+                for (let c = 0; c < numberOfChannels; c++) channels.push(buffer.getChannelData(c));
                 const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
                 const view = new DataView(arrayBuffer);
-                
                 const writeString = (offset, string) => {
-                    for (let i = 0; i < string.length; i++) {
-                        view.setUint8(offset + i, string.charCodeAt(i));
-                    }
+                    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
                 };
                 writeString(0, 'RIFF');
                 view.setUint32(4, 36 + length * numberOfChannels * 2, true);
@@ -758,18 +757,18 @@ self.onmessage = function(e) {
                 view.setUint16(34, 16, true);
                 writeString(36, 'data');
                 view.setUint32(40, length * numberOfChannels * 2, true);
-                
-                const samplesPerYield = 2048;
-                const logEverySamples = 44100 * 5;
-                let offset = 44;
+                const int16 = new Int16Array(arrayBuffer, 44, length * numberOfChannels);
+                let idx = 0;
+                const yieldEvery = sampleRate * 2;
                 for (let i = 0; i < length; i++) {
-                    for (let channel = 0; channel < numberOfChannels; channel++) {
-                        const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
-                        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-                        offset += 2;
+                    for (let c = 0; c < numberOfChannels; c++) {
+                        const s = channels[c][i];
+                        int16[idx++] = s < 0 ? (s <= -1 ? -32768 : s * 0x8000) : (s >= 1 ? 32767 : s * 0x7FFF);
                     }
-                    if (i > 0 && i % samplesPerYield === 0) await this.yieldToMain();
-                    if (i > 0 && i % logEverySamples === 0) console.log('[MP3] audioBufferToWavAsync: progress', (i / length * 100).toFixed(0) + '%');
+                    if (i > 0 && i % yieldEvery === 0) {
+                        await this.yieldToMain();
+                        if (i % (sampleRate * 10) === 0) console.log('[MP3] audioBufferToWavAsync: progress', (i / sampleRate).toFixed(0) + 's');
+                    }
                 }
                 console.log('[MP3] audioBufferToWavAsync: done');
                 return arrayBuffer;
