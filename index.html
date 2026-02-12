@@ -628,34 +628,41 @@ self.onmessage = function(e) {
                 if (!this.audioBlob) return;
                 
                 try {
+                    console.log('[MP3] 1. Starting conversion');
                     this.status.textContent = 'Converting to MP3...';
                     await this.yieldToMain();
                     
+                    console.log('[MP3] 2. Starting decode phase');
                     this.status.textContent = 'Converting to MP3... (decoding)';
                     await this.yieldToMain();
                     const wavBlob = await this.convertToWav(this.audioBlob);
+                    console.log('[MP3] 3. Decode phase done, wavBlob size:', wavBlob.size);
                     
                     this.status.textContent = 'Converting to MP3... (encoding in background)';
                     await this.yieldToMain();
                     
+                    console.log('[MP3] 4. Reading WAV for worker');
                     const wavArrayBuffer = await new Promise((resolve, reject) => {
                         const reader = new FileReader();
                         reader.onload = (e) => resolve(e.target.result);
                         reader.onerror = reject;
                         reader.readAsArrayBuffer(wavBlob);
                     });
+                    console.log('[MP3] 5. Sending to worker');
                     
                     let mp3Blob;
                     try {
                         mp3Blob = await this.encodeWavToMp3InWorker(wavArrayBuffer);
+                        console.log('[MP3] 6. Worker finished, mp3 size:', mp3Blob.size);
                     } catch (workerErr) {
+                        console.warn('[MP3] Worker failed, using main thread:', workerErr.message);
                         this.status.textContent = 'Converting to MP3... (encoding on page)';
                         await this.yieldToMain();
                         await this.ensureLameJs();
                         mp3Blob = await this.convertToMp3(wavBlob);
                     }
                     
-                    // Get custom filename or use default
+                    console.log('[MP3] 7. Creating download');
                     const customFilename = this.getValidFilename();
                     
                     const downloadUrl = URL.createObjectURL(mp3Blob);
@@ -667,13 +674,13 @@ self.onmessage = function(e) {
                     document.body.removeChild(a);
                     
                     this.status.textContent = 'MP3 file downloaded successfully!';
+                    console.log('[MP3] 8. Download done');
                     
-                    // Clean up
                     URL.revokeObjectURL(downloadUrl);
                     
                 } catch (error) {
+                    console.error('[MP3] Conversion failed:', error);
                     this.showError('Error converting to MP3: ' + error.message);
-                    console.error('Error converting to MP3:', error);
                 }
             }
             
@@ -709,15 +716,19 @@ self.onmessage = function(e) {
             }
             
             async convertToWav(webmBlob) {
+                console.log('[MP3] convertToWav: reading blob, size=', webmBlob.size);
                 const arrayBuffer = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = (e) => resolve(e.target.result);
                     reader.onerror = reject;
                     reader.readAsArrayBuffer(webmBlob);
                 });
+                console.log('[MP3] convertToWav: blob read, bytes=', arrayBuffer.byteLength, '- about to call decodeAudioData (this can block)');
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                console.log('[MP3] convertToWav: decodeAudioData done, duration=', audioBuffer.duration.toFixed(1), 's, samples=', audioBuffer.length);
                 const wavBuffer = await this.audioBufferToWavAsync(audioBuffer);
+                console.log('[MP3] convertToWav: WAV buffer built, returning');
                 return new Blob([wavBuffer], { type: 'audio/wav' });
             }
             
@@ -725,6 +736,7 @@ self.onmessage = function(e) {
                 const length = buffer.length;
                 const numberOfChannels = buffer.numberOfChannels;
                 const sampleRate = buffer.sampleRate;
+                console.log('[MP3] audioBufferToWavAsync: start, length=', length, 'channels=', numberOfChannels, 'rate=', sampleRate, '~', (length / sampleRate).toFixed(1), 's');
                 const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
                 const view = new DataView(arrayBuffer);
                 
@@ -748,6 +760,7 @@ self.onmessage = function(e) {
                 view.setUint32(40, length * numberOfChannels * 2, true);
                 
                 const samplesPerYield = 2048;
+                const logEverySamples = 44100 * 5;
                 let offset = 44;
                 for (let i = 0; i < length; i++) {
                     for (let channel = 0; channel < numberOfChannels; channel++) {
@@ -756,7 +769,9 @@ self.onmessage = function(e) {
                         offset += 2;
                     }
                     if (i > 0 && i % samplesPerYield === 0) await this.yieldToMain();
+                    if (i > 0 && i % logEverySamples === 0) console.log('[MP3] audioBufferToWavAsync: progress', (i / length * 100).toFixed(0) + '%');
                 }
+                console.log('[MP3] audioBufferToWavAsync: done');
                 return arrayBuffer;
             }
             
