@@ -518,16 +518,29 @@
                 }
             }
             
+            async ensureLameJs() {
+                if (typeof lamejs !== 'undefined' && lamejs.Mp3Encoder) return;
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js';
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(new Error('Could not load MP3 encoder. Check your connection or try disabling ad blockers.'));
+                    document.head.appendChild(script);
+                });
+            }
+            
             async downloadRecording() {
                 if (!this.audioBlob) return;
                 
                 try {
                     this.status.textContent = 'Converting to MP3...';
                     
+                    await this.ensureLameJs();
+                    
                     // Convert WebM to WAV first
                     const wavBlob = await this.convertToWav(this.audioBlob);
                     
-                    // Convert WAV to MP3
+                    // Convert WAV to MP3 (with yielding to avoid main-thread crash)
                     const mp3Blob = await this.convertToMp3(wavBlob);
                     
                     // Get custom filename or use default
@@ -584,40 +597,30 @@
             }
             
             async convertToWav(webmBlob) {
-                return new Promise((resolve, reject) => {
+                const arrayBuffer = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
-                    reader.onload = async (e) => {
-                        try {
-                            const arrayBuffer = e.target.result;
-                            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                            
-                            const wavBuffer = this.audioBufferToWav(audioBuffer);
-                            const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
-                            resolve(wavBlob);
-                        } catch (error) {
-                            reject(error);
-                        }
-                    };
+                    reader.onload = (e) => resolve(e.target.result);
                     reader.onerror = reject;
                     reader.readAsArrayBuffer(webmBlob);
                 });
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const wavBuffer = await this.audioBufferToWavAsync(audioBuffer);
+                return new Blob([wavBuffer], { type: 'audio/wav' });
             }
             
-            audioBufferToWav(buffer) {
+            async audioBufferToWavAsync(buffer) {
                 const length = buffer.length;
                 const numberOfChannels = buffer.numberOfChannels;
                 const sampleRate = buffer.sampleRate;
                 const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
                 const view = new DataView(arrayBuffer);
                 
-                // WAV header
                 const writeString = (offset, string) => {
                     for (let i = 0; i < string.length; i++) {
                         view.setUint8(offset + i, string.charCodeAt(i));
                     }
                 };
-                
                 writeString(0, 'RIFF');
                 view.setUint32(4, 36 + length * numberOfChannels * 2, true);
                 writeString(8, 'WAVE');
@@ -632,7 +635,7 @@
                 writeString(36, 'data');
                 view.setUint32(40, length * numberOfChannels * 2, true);
                 
-                // Convert float32 to int16
+                const samplesPerYield = 44100;
                 let offset = 44;
                 for (let i = 0; i < length; i++) {
                     for (let channel = 0; channel < numberOfChannels; channel++) {
@@ -640,74 +643,65 @@
                         view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
                         offset += 2;
                     }
+                    if (i > 0 && i % samplesPerYield === 0) await this.yieldToMain();
                 }
-                
                 return arrayBuffer;
             }
             
+            yieldToMain() {
+                return new Promise(resolve => setTimeout(resolve, 0));
+            }
+            
             async convertToMp3(wavBlob) {
-                return new Promise((resolve, reject) => {
+                const arrayBuffer = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const arrayBuffer = e.target.result;
-                            const dataView = new DataView(arrayBuffer);
-                            
-                            // Parse WAV header
-                            const sampleRate = dataView.getUint32(24, true);
-                            const numChannels = dataView.getUint16(22, true);
-                            const dataOffset = 44;
-                            const dataLength = arrayBuffer.byteLength - dataOffset;
-                            
-                            // Convert to 16-bit PCM
-                            const pcmData = new Int16Array(arrayBuffer, dataOffset, dataLength / 2);
-                            
-                            // Initialize LAME encoder
-                            const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, 128);
-                            const mp3Data = [];
-                            
-                            // Encode in chunks
-                            const chunkSize = 1152;
-                            for (let i = 0; i < pcmData.length; i += chunkSize * numChannels) {
-                                const chunk = pcmData.subarray(i, i + chunkSize * numChannels);
-                                let mp3buf;
-                                
-                                if (numChannels === 1) {
-                                    mp3buf = mp3encoder.encodeBuffer(chunk);
-                                } else {
-                                    // Separate left and right channels
-                                    const left = new Int16Array(chunk.length / 2);
-                                    const right = new Int16Array(chunk.length / 2);
-                                    
-                                    for (let j = 0; j < chunk.length; j += 2) {
-                                        left[j / 2] = chunk[j];
-                                        right[j / 2] = chunk[j + 1];
-                                    }
-                                    
-                                    mp3buf = mp3encoder.encodeBuffer(left, right);
-                                }
-                                
-                                if (mp3buf.length > 0) {
-                                    mp3Data.push(mp3buf);
-                                }
-                            }
-                            
-                            // Flush encoder
-                            const mp3buf = mp3encoder.flush();
-                            if (mp3buf.length > 0) {
-                                mp3Data.push(mp3buf);
-                            }
-                            
-                            const mp3Blob = new Blob(mp3Data, { type: 'audio/mp3' });
-                            resolve(mp3Blob);
-                            
-                        } catch (error) {
-                            reject(error);
-                        }
-                    };
+                    reader.onload = (e) => resolve(e.target.result);
                     reader.onerror = reject;
                     reader.readAsArrayBuffer(wavBlob);
                 });
+                
+                const dataView = new DataView(arrayBuffer);
+                const sampleRate = dataView.getUint32(24, true);
+                const numChannels = dataView.getUint16(22, true);
+                const dataOffset = 44;
+                const dataLength = arrayBuffer.byteLength - dataOffset;
+                const pcmData = new Int16Array(arrayBuffer, dataOffset, dataLength / 2);
+                
+                const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, 128);
+                const mp3Data = [];
+                const chunkSize = 1152;
+                const yieldEveryChunks = 50;
+                let chunksSinceYield = 0;
+                
+                for (let i = 0; i < pcmData.length; i += chunkSize * numChannels) {
+                    const chunk = pcmData.subarray(i, Math.min(i + chunkSize * numChannels, pcmData.length));
+                    let mp3buf;
+                    
+                    if (numChannels === 1) {
+                        mp3buf = mp3encoder.encodeBuffer(chunk);
+                    } else {
+                        const left = new Int16Array(chunk.length / 2);
+                        const right = new Int16Array(chunk.length / 2);
+                        for (let j = 0; j < chunk.length; j += 2) {
+                            left[j / 2] = chunk[j];
+                            right[j / 2] = chunk[j + 1];
+                        }
+                        mp3buf = mp3encoder.encodeBuffer(left, right);
+                    }
+                    
+                    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                    
+                    chunksSinceYield++;
+                    if (chunksSinceYield >= yieldEveryChunks) {
+                        chunksSinceYield = 0;
+                        await this.yieldToMain();
+                    }
+                }
+                
+                const flushBuf = mp3encoder.flush();
+                if (flushBuf.length > 0) mp3Data.push(flushBuf);
+                
+                return new Blob(mp3Data, { type: 'audio/mp3' });
             }
             
             startTimer() {
