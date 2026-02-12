@@ -529,19 +529,137 @@
                 });
             }
             
+            convertInWorker(webmArrayBuffer) {
+                return new Promise((resolve, reject) => {
+                    const workerCode = `
+try {
+  importScripts('https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js');
+} catch (e) {
+  self.postMessage({ error: 'MP3 encoder failed to load: ' + e.message });
+  return;
+}
+function bufferToWav(buffer) {
+  const length = buffer.length;
+  const numberOfChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
+  const view = new DataView(arrayBuffer);
+  const writeString = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + length * numberOfChannels * 2, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numberOfChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numberOfChannels * 2, true);
+  view.setUint16(32, numberOfChannels * 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, 'data');
+  view.setUint32(40, length * numberOfChannels * 2, true);
+  let offset = 44;
+  for (let i = 0; i < length; i++) {
+    for (let ch = 0; ch < numberOfChannels; ch++) {
+      const s = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+  }
+  return arrayBuffer;
+}
+function wavToMp3(arrayBuffer) {
+  const dv = new DataView(arrayBuffer);
+  const sampleRate = dv.getUint32(24, true);
+  const numChannels = dv.getUint16(22, true);
+  const pcmData = new Int16Array(arrayBuffer, 44, (arrayBuffer.byteLength - 44) / 2);
+  const enc = new lamejs.Mp3Encoder(numChannels, sampleRate, 128);
+  const out = [];
+  const chunkSize = 1152;
+  for (let i = 0; i < pcmData.length; i += chunkSize * numChannels) {
+    const chunk = pcmData.subarray(i, Math.min(i + chunkSize * numChannels, pcmData.length));
+    if (numChannels === 1) {
+      const b = enc.encodeBuffer(chunk);
+      if (b.length) out.push(b);
+    } else {
+      const L = new Int16Array(chunk.length / 2), R = new Int16Array(chunk.length / 2);
+      for (let j = 0; j < chunk.length; j += 2) { L[j/2] = chunk[j]; R[j/2] = chunk[j+1]; }
+      const b = enc.encodeBuffer(L, R);
+      if (b.length) out.push(b);
+    }
+  }
+  const f = enc.flush();
+  if (f.length) out.push(f);
+  return out;
+}
+self.onmessage = async function(e) {
+  const ab = e.data;
+  try {
+    const ctx = new OfflineAudioContext(1, 1, 44100);
+    const audioBuffer = await ctx.decodeAudioData(ab);
+    const wav = bufferToWav(audioBuffer);
+    const mp3Chunks = wavToMp3(wav);
+    const totalLen = mp3Chunks.reduce((s, c) => s + c.length, 0);
+    const result = new Uint8Array(totalLen);
+    let pos = 0;
+    for (const c of mp3Chunks) { result.set(c, pos); pos += c.length; }
+    self.postMessage({ mp3: result.buffer }, [result.buffer]);
+  } catch (err) {
+    self.postMessage({ error: err.message || String(err) });
+  }
+};
+`;
+                    let worker;
+                    try {
+                        const blob = new Blob([workerCode], { type: 'application/javascript' });
+                        worker = new Worker(URL.createObjectURL(blob));
+                    } catch (err) {
+                        reject(err);
+                        return;
+                    }
+                    const timeout = setTimeout(() => {
+                        worker.terminate();
+                        reject(new Error('Conversion timed out'));
+                    }, 300000);
+                    worker.onmessage = (e) => {
+                        clearTimeout(timeout);
+                        worker.terminate();
+                        if (e.data.error) reject(new Error(e.data.error));
+                        else resolve(new Blob([e.data.mp3], { type: 'audio/mp3' }));
+                    };
+                    worker.onerror = (err) => {
+                        clearTimeout(timeout);
+                        worker.terminate();
+                        reject(new Error(err.message || 'Worker error'));
+                    };
+                    worker.postMessage(webmArrayBuffer, [webmArrayBuffer]);
+                });
+            }
+            
             async downloadRecording() {
                 if (!this.audioBlob) return;
                 
                 try {
                     this.status.textContent = 'Converting to MP3...';
+                    await this.yieldToMain();
                     
-                    await this.ensureLameJs();
+                    const arrayBuffer = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.onerror = reject;
+                        reader.readAsArrayBuffer(this.audioBlob);
+                    });
                     
-                    // Convert WebM to WAV first
-                    const wavBlob = await this.convertToWav(this.audioBlob);
-                    
-                    // Convert WAV to MP3 (with yielding to avoid main-thread crash)
-                    const mp3Blob = await this.convertToMp3(wavBlob);
+                    let mp3Blob;
+                    try {
+                        mp3Blob = await this.convertInWorker(arrayBuffer);
+                    } catch (workerErr) {
+                        this.status.textContent = 'Converting to MP3... (using main thread)';
+                        await this.yieldToMain();
+                        await this.ensureLameJs();
+                        const wavBlob = await this.convertToWav(this.audioBlob);
+                        mp3Blob = await this.convertToMp3(wavBlob);
+                    }
                     
                     // Get custom filename or use default
                     const customFilename = this.getValidFilename();
@@ -635,7 +753,7 @@
                 writeString(36, 'data');
                 view.setUint32(40, length * numberOfChannels * 2, true);
                 
-                const samplesPerYield = 44100;
+                const samplesPerYield = 2048;
                 let offset = 44;
                 for (let i = 0; i < length; i++) {
                     for (let channel = 0; channel < numberOfChannels; channel++) {
@@ -649,7 +767,9 @@
             }
             
             yieldToMain() {
-                return new Promise(resolve => setTimeout(resolve, 0));
+                return new Promise(resolve => {
+                    requestAnimationFrame(() => setTimeout(resolve, 0));
+                });
             }
             
             async convertToMp3(wavBlob) {
@@ -670,7 +790,7 @@
                 const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, 128);
                 const mp3Data = [];
                 const chunkSize = 1152;
-                const yieldEveryChunks = 50;
+                const yieldEveryChunks = 4;
                 let chunksSinceYield = 0;
                 
                 for (let i = 0; i < pcmData.length; i += chunkSize * numChannels) {
